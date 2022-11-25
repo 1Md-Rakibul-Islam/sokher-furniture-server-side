@@ -42,6 +42,7 @@ async function run() {
     try{
         // db all collections
         const usersCollection = client.db('SokherFurniture').collection('users');
+        const productsCategoriesCollection = client.db('SokherFurniture').collection('productsCategories');
 
         app.get('/jwt', async(req, res) => {
             const email = req.query.email;
@@ -62,6 +63,37 @@ async function run() {
             const result = await usersCollection.insertOne(user);
             res.send(result);
         })
+
+        // buyer role email send to client side
+        app.get('/users/buyer/:email', async(req, res) => {
+            const email = req.params.email;
+            const query = { email };
+            const user = await usersCollection.findOne(query);
+            res.send({isSeller: user?.role === 'buyer'});
+        })
+        // seller role email send to client side
+        app.get('/users/seller/:email', async(req, res) => {
+            const email = req.params.email;
+            const query = { email };
+            const user = await usersCollection.findOne(query);
+            res.send({isSeller: user?.role === 'seller'});
+        })
+        // user role email send to client side
+        app.get('/users/admin/:email', async(req, res) => {
+            const email = req.params.email;
+            const query = { email };
+            const user = await usersCollection.findOne(query);
+            res.send({isSeller: user?.role === 'admin'});
+        })
+
+        // all categories data load from db and send to client side
+        app.get('/productsCategories', async(req, res)=> {
+            const query = {};
+            const categories = await productsCategoriesCollection.find(query).toArray();
+            res.send(categories);
+        });
+
+        
     }
 
     finally{
