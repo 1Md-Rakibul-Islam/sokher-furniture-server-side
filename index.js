@@ -45,6 +45,7 @@ async function run() {
         const productsCategoriesCollection = client.db('SokherFurniture').collection('productsCategories');
         const productsCollection = client.db('SokherFurniture').collection('products');
 
+
         app.get('/jwt', async(req, res) => {
             const email = req.query.email;
             const query = {email: email};
@@ -79,6 +80,7 @@ async function run() {
             const user = await usersCollection.findOne(query);
             res.send({isSeller: user?.role === 'seller'});
         })
+
         // user role email send to client side
         app.get('/users/admin/:email', async(req, res) => {
             const email = req.params.email;
@@ -102,6 +104,16 @@ async function run() {
             res.send(categories);
         });
 
+        // seller base product load from db and send client site
+        app.get('/seller/products', async(req, res)=> {
+            const jwt= req.headers.authorization;
+            console.log(jwt);
+            const email = req.query.email;
+            const filter = { sellerEmail : email };
+            const sellerProducts = await productsCollection.find(filter).toArray();
+            res.send(sellerProducts);
+        });
+
         app.post('/products', async(req, res) => {
             const product = req.body;
             console.log(product);
@@ -109,7 +121,18 @@ async function run() {
             res.send(result);
         })
 
+
+        // ----------admin role --------//
         
+        // all seller send to client side
+
+
+        app.get('/sellers', async(req, res) => {
+            const filter = { role: 'seller' };
+            const sellers = await usersCollection.find(filter).toArray();
+            res.send(sellers);
+        })
+
     }
 
     finally{
