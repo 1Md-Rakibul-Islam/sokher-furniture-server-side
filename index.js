@@ -43,6 +43,7 @@ async function run() {
         // db all collections
         const usersCollection = client.db('SokherFurniture').collection('users');
         const productsCategoriesCollection = client.db('SokherFurniture').collection('productsCategories');
+        const productsCollection = client.db('SokherFurniture').collection('products');
 
         app.get('/jwt', async(req, res) => {
             const email = req.query.email;
@@ -69,7 +70,7 @@ async function run() {
             const email = req.params.email;
             const query = { email };
             const user = await usersCollection.findOne(query);
-            res.send({isSeller: user?.role === 'buyer'});
+            res.send({isBuyer: user?.role === 'buyer'});
         })
         // seller role email send to client side
         app.get('/users/seller/:email', async(req, res) => {
@@ -83,7 +84,7 @@ async function run() {
             const email = req.params.email;
             const query = { email };
             const user = await usersCollection.findOne(query);
-            res.send({isSeller: user?.role === 'admin'});
+            res.send({isAdmin: user?.role === 'admin'});
         })
 
         // all categories data load from db and send to client side
@@ -92,6 +93,21 @@ async function run() {
             const categories = await productsCategoriesCollection.find(query).toArray();
             res.send(categories);
         });
+
+        // category base product load from db and send client site
+        app.get('/categories/:categoriyName', async(req, res)=> {
+            const category = req.params.categoriyName;
+            const filter = { category, status: 'available' };
+            const categories = await productsCollection.find(filter).toArray();
+            res.send(categories);
+        });
+
+        app.post('/products', async(req, res) => {
+            const product = req.body;
+            console.log(product);
+            const result = await productsCollection.insertOne(product);
+            res.send(result);
+        })
 
         
     }
