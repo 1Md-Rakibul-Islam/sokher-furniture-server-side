@@ -139,7 +139,6 @@ async function run() {
         // delete id based product
         app.delete('/products/:_id', async(req, res) => {
             const id = req.params._id;
-            console.log('delete', id);
             const filter = { _id: ObjectId(id)};
             const product = await productsCollection.deleteOne(filter);
             res.send(product);
@@ -154,6 +153,37 @@ async function run() {
             const bookingProduct = await productsBookingsCollection.insertOne(booking);
             res.send(bookingProduct);
         })
+
+        // all bookings load
+        app.get('/bookings', async(req, res) => {
+            const query = { };
+            const bookingProducts = await productsBookingsCollection.find(query).toArray();
+            res.send(bookingProducts);
+        })
+
+        // isBooked true or false
+        app.get('/bookings/:_id', async(req, res) => {
+            const id = req.params._id;
+            const filter = { productId: id};
+            const bookedProduct = await productsBookingsCollection.findOne(filter);
+            res.send({isBooking: id === bookedProduct?.productId});
+        })
+        
+        // my orders get api
+        app.get('/user/orders', async(req, res) => {
+            const email = req.query.email;
+            const filter = { buyerEmail: email};
+            const orders = await productsBookingsCollection.find(filter).toArray();
+            res.send(orders);
+        })
+
+
+        // app.get('/users/buyer/:email', async(req, res) => {
+        //     const email = req.params.email;
+        //     const query = { email };
+        //     const user = await usersCollection.findOne(query);
+        //     res.send({isBuyer: user?.role === 'buyer'});
+        // })
 
 
 
