@@ -44,6 +44,7 @@ async function run() {
         const usersCollection = client.db('SokherFurniture').collection('users');
         const productsCategoriesCollection = client.db('SokherFurniture').collection('productsCategories');
         const productsCollection = client.db('SokherFurniture').collection('products');
+        const productsBookingsCollection = client.db('SokherFurniture').collection('bookings');
 
 
         app.get('/jwt', async(req, res) => {
@@ -116,22 +117,64 @@ async function run() {
 
         app.post('/products', async(req, res) => {
             const product = req.body;
-            console.log(product);
             const result = await productsCollection.insertOne(product);
             res.send(result);
         })
+
+        //get all product and send client side
+        app.get('/products', async(req, res) => {
+            const query = { };
+            const products = await productsCollection.find(query).toArray();
+            res.send(products);
+        })
+
+        //id based single product and send client side
+        app.get('/products/:_id', async(req, res) => {
+            const id = req.params._id;
+            const filter = { _id: ObjectId(id)};
+            const product = await productsCollection.findOne(filter);
+            res.send(product);
+        });
+
+        // delete id based product
+        app.delete('/products/:_id', async(req, res) => {
+            const id = req.params._id;
+            console.log('delete', id);
+            const filter = { _id: ObjectId(id)};
+            const product = await productsCollection.deleteOne(filter);
+            res.send(product);
+        });
+
+
+        //---------buyer role--------//
+
+        // product booking post api
+        app.post('/bookings', async(req, res) => {
+            const booking = req.body;
+            const bookingProduct = await productsBookingsCollection.insertOne(booking);
+            res.send(bookingProduct);
+        })
+
 
 
         // ----------admin role --------//
         
         // all seller send to client side
-
-
         app.get('/sellers', async(req, res) => {
             const filter = { role: 'seller' };
             const sellers = await usersCollection.find(filter).toArray();
             res.send(sellers);
-        })
+        });
+
+        // all users send
+        app.get('/users', async(req, res) => {
+            const filter = { };
+            const allUsers = await usersCollection.find(filter).toArray();
+            res.send(allUsers);
+        });
+
+
+
 
     }
 
