@@ -212,6 +212,13 @@ async function run() {
         })
 
 
+        // app.get('/users/buyer/:email', async(req, res) => {
+        //     const email = req.params.email;
+        //     const query = { email };
+        //     const user = await usersCollection.findOne(query);
+        //     res.send({isBuyer: user?.role === 'buyer'});
+        // })
+
 
         //report product post api
         app.post('/product/report', async(req, res) => {
@@ -235,6 +242,9 @@ async function run() {
             const reportedProducts = await reportedProductCollection.deleteOne(filter);
             res.send(reportedProducts);
         })
+
+
+
 
         // ----------admin role --------//
         
@@ -272,3 +282,15 @@ app.get('/', async(req, res) => {
 app.listen(port, () => {
     console.log(`Server runnin on: ${port}`);
 })
+
+
+
+
+
+        // get adverisign all product advertising
+        app.get('http://localhost:5000/seller/advertising/product', async(req, res) => {
+
+            const filter = { AdStatus: advertising };
+            const advertisedProduct = productsCollection.find(filter).toArray();
+            res.send(advertisedProduct)
+        })
