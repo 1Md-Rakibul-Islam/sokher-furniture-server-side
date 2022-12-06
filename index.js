@@ -4,6 +4,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const { query } = require('express');
 require('dotenv').config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 const app = express();
 
@@ -11,7 +12,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// require('crypto').randomBytes(64).toString('hex)'
+
 
 // Mongodb database setup
 const dbUri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.gksews0.mongodb.net/?retryWrites=true&w=majority`;
@@ -46,7 +47,54 @@ async function run() {
         const productsCollection = client.db('SokherFurniture').collection('products');
         const productsBookingsCollection = client.db('SokherFurniture').collection('bookings');
         const reportedProductCollection = client.db('SokherFurniture').collection('reportedProduct');
+        const paymentsCollection = client.db('SokherFurniture').collection('payments');
 
+        // payment method
+        app.post('/create-payment-intent', async(req, res) => {
+            const booking = req.body;
+            const price = booking.reselPrice;
+            const amount = price * 100;
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                currency: "usd",
+                amount: amount,
+                "payment_method_types": [
+                    "card"
+                ],
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+              })
+        })
+
+        app.post('/payments', async(req, res) => {
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
+            
+            const id = payment.bookingId;
+            const filter = { _id: ObjectId(id)};
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transationId: payment.transationId
+                }
+            }
+            const updateResult = await productsBookingsCollection.updateOne(filter, updatedDoc);
+
+            const productId = payment.productId;
+            const filterProduct = { _id: ObjectId(productId)};
+            const updatedProductDoc = {
+                $set: {
+                    status: 'sold',
+                }
+            }
+            const updateProductResult = await productsCollection.updateOne(filterProduct, updatedProductDoc);
+
+            res.send(result);
+        })
+
+        // pyment end
+                
 
         app.get('/jwt', async(req, res) => {
             const email = req.query.email;
@@ -63,8 +111,17 @@ async function run() {
         // all user data insert on databse
         app.post('/users', async(req, res) => {
             const user = req.body;
-            console.log(user);
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        })
+
+        //delete a user api
+
+        app.delete('/users/:_id', async(req, res) => {
+            const id = req.params._id;
+            console.log(id);
+            const filter = { _id: ObjectId(id) }
+            const result = await usersCollection.deleteOne(filter);
             res.send(result);
         })
 
@@ -119,7 +176,7 @@ async function run() {
         // seller base product load from db and send client site
         app.get('/seller/products', async(req, res)=> {
             const jwt= req.headers.authorization;
-            console.log(jwt);
+            // console.log(jwt);
             const email = req.query.email;
             const filter = { sellerEmail : email };
             const sellerProducts = await productsCollection.find(filter).toArray();
@@ -139,15 +196,41 @@ async function run() {
             res.send(products);
         })
 
-        //advetising update
-        app.put('http://localhost:5000/seller/advertising/product/:_id', async(req, res) => {
+        //verify seler
+        app.put('/sellers/verify/:_id', async(req, res) => {
             const id = req.params._id;
-            console.log(id)
+            const filter = { _id: ObjectId(id)};
+            const options = {upsert: true};
+            const updatedDoc = {
+                $set: {
+                    verified: true
+                }            
+            }
+            const result = await usersCollection.updateOne(filter, updatedDoc, options);
+            res.send(result);
+        })
+
+        // all verified sellers
+        app.get('/verified/sellers', async(req, res) => {
+            const filter = { verified: true };
+            const verifiedSellers = await usersCollection.find(filter).toArray();
+            res.send(verifiedSellers)
+        })
+        // id based verified selers
+        app.get('/verified/sellers/:_id', async(req, res) => {
+            const filter = { verified: true };
+            const verifiedSeller = await usersCollection.findOne(filter);
+            res.send({isVerifiedSeller: verifiedSeller?.verified === true})
+        })
+
+        //advetising update
+        app.put('/seller/advertising/product/:_id', async(req, res) => {
+            const id = req.params._id;
             const filter = { _id: ObjectId(id) };
             const options = {upsert: true};
             const updatedDoc = {
                 $set: {
-                    adStatus: 'Advertised'
+                    advertising: true
                 }
             }
             const result = await productsCollection.updateOne(filter, updatedDoc, options);
@@ -155,10 +238,17 @@ async function run() {
         })
 
         // get adverisign all product advertising
-        app.get('http://localhost:5000/seller/advertising/product', async(req, res) => {
+        app.get('/advertising/products', async(req, res) => {
+            const filter = { advertising: true };
+            const advertisedProducts = await productsCollection.find(filter).toArray();
+            res.send(advertisedProducts)
+        })
 
-            const filter = { AdStatus: advertising };
-            const advertisedProduct = productsCollection.find(filter).toArray();
+        app.get('/advertising/products/:_id', async(req, res) => {
+            const id = req.params._id;
+            console.log(id);
+            const filter = { _id: ObjectId(id) };
+            const advertisedProduct = await productsCollection.find(filter).toArray();
             res.send(advertisedProduct)
         })
 
@@ -202,6 +292,14 @@ async function run() {
             const bookedProduct = await productsBookingsCollection.findOne(filter);
             res.send({isBooking: id === bookedProduct?.productId});
         })
+
+        // pay for booked product
+        app.get('/dashboard/bookings/pay/:_id', async(req, res) => {
+            const id = req.params._id;
+            const filter = { _id: ObjectId(id) };
+            const bookedProduct = await productsBookingsCollection.findOne(filter);
+            res.send(bookedProduct);
+        })
         
         // my orders get api
         app.get('/user/orders', async(req, res) => {
@@ -216,7 +314,6 @@ async function run() {
         //report product post api
         app.post('/product/report', async(req, res) => {
             const reportedProduct = req.body;
-            console.log(reportedProduct)
             const reporting = await reportedProductCollection.insertOne(reportedProduct);
             res.send(reporting);
         })
